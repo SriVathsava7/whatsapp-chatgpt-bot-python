@@ -45,6 +45,8 @@ Find other AI Chatbot implementations in [Node.js](https://github.com/wassengerh
 
 ## Quick Start
 
+### Local Python Installation
+
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/wassengerhq/whatsapp-chatgpt-bot-python.git
@@ -64,6 +66,76 @@ Find other AI Chatbot implementations in [Node.js](https://github.com/wassengerh
    uvicorn src.main:app --reload --port 8080
    # Or use provided scripts for Ngrok tunnel
    ```
+
+### Using Docker
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/wassengerhq/whatsapp-chatgpt-bot-python.git
+   cd whatsapp-chatgpt-bot-python
+   ```
+
+2. **Configure environment:**
+   ```bash
+   cp .env.example .env
+   # Edit .env file with your API keys (see Configuration section)
+   ```
+
+3. **Run with Docker Compose:**
+   ```bash
+   # Production mode
+   docker-compose up chatbot
+
+   # Development mode with hot reloading
+   docker-compose --profile development up chatbot-dev
+   ```
+
+  #### Local Testing with Docker
+
+  For local development and testing using Docker:
+
+  1. **Build the Docker image locally:**
+    ```bash
+    # Build production image
+    docker build -t whatsapp-chatbot-local:latest .
+
+    # Or build development image with debugging tools
+    docker build --target development -t whatsapp-chatbot-local:dev .
+    ```
+
+  2. **Run for local testing:**
+    ```bash
+    # Run production build locally
+    docker run -d \
+      --name whatsapp-chatbot-test \
+      -p 8080:8080 \
+      --env-file .env \
+      whatsapp-chatbot-local:latest
+
+    # Run development build with volume mounting for live code changes
+    docker run -d \
+      --name whatsapp-chatbot-dev-test \
+      -p 8080:8080 \
+      --env-file .env \
+      -v $(pwd)/src:/app/src:ro \
+      whatsapp-chatbot-local:dev
+    ```
+
+  3. **Test the local container:**
+    ```bash
+    # Check if container is running
+    docker ps | grep whatsapp-chatbot
+
+    # View logs
+    docker logs whatsapp-chatbot-test
+
+    # Test the API endpoint
+    curl http://localhost:8080/
+
+    # Stop and remove when done
+    docker stop whatsapp-chatbot-test
+    docker rm whatsapp-chatbot-test
+    ```
 
 ## Requirements
 
@@ -157,7 +229,172 @@ Edit `src/config/bot_config.py` to customize:
 
 ## Deployment
 
-You can deploy this bot to any cloud platform that supports Python and FastAPI. Example (Docker):
+### Docker Deployment (Recommended)
+
+The project includes a multi-stage Dockerfile optimized for both development and production environments.
+
+#### Quick Docker Setup
+
+1. **Build and run with Docker Compose (easiest):**
+   ```bash
+   # Production deployment
+   docker-compose up -d chatbot
+
+   # Development with hot reloading
+   docker-compose --profile development up chatbot-dev
+   ```
+
+#### Manual Docker Build
+
+1. **Build the Docker image:**
+   ```bash
+   # Production build
+   docker build -t whatsapp-chatbot:latest .
+
+   # Development build
+   docker build --target development -t whatsapp-chatbot:dev .
+   ```
+
+2. **Run the container:**
+   ```bash
+   # Production mode
+   docker run -d \
+     --name whatsapp-chatbot \
+     -p 8080:8080 \
+     --env-file .env \
+     whatsapp-chatbot:latest
+
+   # Development mode with volume mounting
+   docker run -d \
+     --name whatsapp-chatbot-dev \
+     -p 8080:8080 \
+     --env-file .env \
+     -v $(pwd)/src:/app/src:ro \
+     whatsapp-chatbot:dev
+   ```
+
+#### Environment Variables for Docker
+
+When deploying with Docker, ensure these environment variables are set in your `.env` file:
+
+```bash
+# Required
+API_KEY=your_wassenger_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Production webhook URL (required for production)
+WEBHOOK_URL=https://yourdomain.com/webhook
+
+# Optional
+OPENAI_MODEL=gpt-4o
+DEVICE=
+PORT=8080
+LOG_LEVEL=info
+```
+
+#### Cloud Platform Deployment
+
+Deploy to any cloud platform that supports Docker:
+
+**Docker Hub:**
+```bash
+# Build and tag for your registry
+docker build -t your-username/whatsapp-chatbot:latest .
+docker push your-username/whatsapp-chatbot:latest
+```
+
+**Heroku:**
+```bash
+# Using Heroku Container Registry
+heroku container:push web -a your-app-name
+heroku container:release web -a your-app-name
+```
+
+**Google Cloud Run:**
+```bash
+# Build and deploy
+gcloud builds submit --tag gcr.io/PROJECT-ID/whatsapp-chatbot
+gcloud run deploy --image gcr.io/PROJECT-ID/whatsapp-chatbot --platform managed
+```
+
+**Render:**
+```bash
+# Create render.yaml in project root
+services:
+  - type: web
+    name: whatsapp-chatbot
+    env: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: API_KEY
+        value: your_wassenger_api_key_here
+      - key: OPENAI_API_KEY
+        value: your_openai_api_key_here
+      - key: WEBHOOK_URL
+        value: https://your-app-name.onrender.com/webhook
+
+# Deploy via Render dashboard or CLI
+```
+
+**Railway:**
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login and deploy
+railway login
+railway link
+railway up
+
+# Set environment variables in Railway dashboard
+# or via CLI:
+railway variables set API_KEY=your_wassenger_api_key_here
+railway variables set OPENAI_API_KEY=your_openai_api_key_here
+railway variables set WEBHOOK_URL=https://your-app.railway.app/webhook
+```
+
+**Fly.io:**
+
+```bash
+# Install flyctl and initialize
+fly auth login
+fly launch --no-deploy
+
+# Configure fly.toml
+[env]
+  PORT = "8080"
+
+[[services]]
+  http_checks = []
+  internal_port = 8080
+  processes = ["app"]
+  protocol = "tcp"
+  script_checks = []
+
+  [services.concurrency]
+    hard_limit = 25
+    soft_limit = 20
+    type = "connections"
+
+  [[services.ports]]
+    force_https = true
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+# Set secrets and deploy
+fly secrets set API_KEY=your_wassenger_api_key_here
+fly secrets set OPENAI_API_KEY=your_openai_api_key_here
+fly secrets set WEBHOOK_URL=https://your-app.fly.dev/webhook
+fly deploy
+```
+
+### Traditional Deployment
+
+You can also deploy this bot without Docker to any cloud platform that supports Python and FastAPI:
 
 ```dockerfile
 FROM python:3.10-slim
@@ -211,7 +448,11 @@ chatgpt-python/
 │   └── main.py        # FastAPI app entry point
 ├── tests/             # Test utilities
 ├── .env.example       # Environment template
+├── .dockerignore      # Docker ignore file
+├── Dockerfile         # Multi-stage Docker build
+├── docker-compose.yml # Docker Compose configuration
 ├── requirements.txt   # Python dependencies
+├── run.py             # Application startup script
 └── README.md
 ```
 
@@ -284,6 +525,44 @@ LIMITS = {
    - Verify your OpenAI API key is valid
    - Check your OpenAI account has sufficient credits
    - Ensure the model name is correct
+
+### Docker Troubleshooting
+
+5. **Container fails to start**
+   ```bash
+   # Check container logs
+   docker logs whatsapp-chatbot
+
+   # Check if environment variables are set
+   docker exec whatsapp-chatbot env | grep -E "(API_KEY|OPENAI_API_KEY)"
+   ```
+
+6. **Port already in use**
+   ```bash
+   # Use different port
+   docker run -p 8081:8080 whatsapp-chatbot:latest
+
+   # Or stop conflicting services
+   docker ps | grep 8080
+   ```
+
+7. **Permission denied errors**
+   ```bash
+   # Check if files are accessible
+   ls -la .env
+
+   # Fix permissions if needed
+   chmod 644 .env
+   ```
+
+8. **Container exits immediately**
+   ```bash
+   # Run interactively to debug
+   docker run -it --env-file .env whatsapp-chatbot:latest /bin/bash
+
+   # Check health status
+   docker inspect whatsapp-chatbot | grep Health
+   ```
 
 ### Debug Mode
 
